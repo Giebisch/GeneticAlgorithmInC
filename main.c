@@ -1,11 +1,15 @@
 #include <stdlib.h>
 #include <stdio.h>
+//#include <math.h>
 #include <time.h>
 
 #define GENE_COUNT          3
 #define GENERATIONS         500
 #define POPULATION_SIZE     500
 #define TOURNAMENT_SIZE     2
+#define MUTATION_CHANCE     0.3
+#define LOW                 -5
+#define HIGH                5
 
 typedef struct chromosome {
     float genes[GENE_COUNT];
@@ -17,11 +21,15 @@ int random_int();
 float random_float(float low, float high);
 float calculate_fitness(Chromosome chromosome);
 void printf_chromosome(Chromosome chromosome);
+
+//double normal_distribution();
+
 Chromosome get_best_chromosome(Chromosome *population, int size);
 
 // genetic algorithm functions
 Chromosome *generate_starting_population();
 Chromosome *tournament_selection(Chromosome *population);
+Chromosome *gaussian_mutation(Chromosome *population);
 
 int main(int argc, char *argv[]) {
     // set random seed
@@ -33,9 +41,11 @@ int main(int argc, char *argv[]) {
         Chromosome best = get_best_chromosome(startingPopulation, POPULATION_SIZE);
         printf_chromosome(best);
         startingPopulation = tournament_selection(startingPopulation);
+        startingPopulation = gaussian_mutation(startingPopulation);
     }
 
     free(startingPopulation);
+
     return 0;
 }
 
@@ -60,7 +70,7 @@ Chromosome *generate_starting_population(){
     Chromosome *chromosomes = (Chromosome*)calloc(POPULATION_SIZE, sizeof(Chromosome));
     for(int i=0; i < POPULATION_SIZE; i++){
         for(int g=0; g < GENE_COUNT; g++){
-            chromosomes[i].genes[g] = random_float(-10, 10);
+            chromosomes[i].genes[g] = random_float(LOW, HIGH);
         }
         chromosomes[i].fitness = calculate_fitness(chromosomes[i]);
     }
@@ -100,3 +110,31 @@ Chromosome get_best_chromosome(Chromosome *population, int size){
     }
     return population[winner_index];
 }
+
+Chromosome *gaussian_mutation(Chromosome *population){
+    Chromosome *new_population = (Chromosome*)calloc(POPULATION_SIZE, sizeof(Chromosome));
+    for(int i=0; i < POPULATION_SIZE; i++){
+        float *new_genes = (float*)calloc(GENE_COUNT, sizeof(float));
+        for(int g=0; i < GENE_COUNT; g++){
+            float old_gene = population[i].genes[g];
+            if(random_float(0, 1) < MUTATION_CHANCE){
+                new_genes[g] = old_gene;// + normal_distribution() * 0.01 * (HIGH - LOW);
+            } else {
+                new_genes[g] = old_gene;
+            }
+        }
+        Chromosome new_chromosome = {.genes = *new_genes};
+        new_chromosome.fitness = calculate_fitness(new_chromosome);
+        new_population[i] = new_chromosome;
+
+    }
+
+    return new_population;
+}
+
+// double normal_distribution(){
+//     // Box-Muller transform
+//     float y1 = random_float(0, 1);
+//     float y2 = random_float(0, 1);
+//     return cos(2*3.14*y2)*sqrt(-2.*log(y1));
+// }
