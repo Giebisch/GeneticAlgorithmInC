@@ -1,4 +1,6 @@
+all: build run
+
 build: main.c
-	gcc main.c -o main -lm
+	gcc -g main.c -o main -lm
 run: main
 	./main
