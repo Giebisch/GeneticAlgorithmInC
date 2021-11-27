@@ -5,12 +5,12 @@
 
 #define GENE_COUNT          3
 #define GENERATIONS         100
-#define POPULATION_SIZE     10
-#define TOURNAMENT_SIZE     2
+#define POPULATION_SIZE     30
+#define TOURNAMENT_SIZE     6
 #define MUTATION_CHANCE     0.3
 #define CROSSOVER_CHANCE    0.7
-#define LOW                 -5.12
-#define HIGH                5.12
+#define LOW                 -5.
+#define HIGH                5.
 
 typedef struct chromosome {
     double genes[GENE_COUNT];
@@ -51,6 +51,7 @@ int main(int argc, char *argv[]) {
     printf_chromosome(best);
     printf("%lf", calculate_function(best));
     free(population);
+
     return 0;
 }
 
@@ -66,8 +67,9 @@ int random_int(int low, int high){
 }
 
 double calculate_function(Chromosome chromosome){
-    // g1 ** 2 + g2 ** 2 + g3 ** 2
-    double value = pow(chromosome.genes[0], 2) + pow(chromosome.genes[1], 2) + pow(chromosome.genes[2], 2);
+    // Rosenbrock function with n = 3
+    double value = 100. * pow((chromosome.genes[1] - pow(chromosome.genes[0], 2.)),2.) + pow((1. - chromosome.genes[0]), 2.);
+                 + 100. * pow((chromosome.genes[2] - pow(chromosome.genes[1], 2.)),2.) + pow((1. - chromosome.genes[1]), 2.);
     return value;
 }
 
@@ -127,7 +129,7 @@ Chromosome *gaussian_mutation(Chromosome *population){
         double new_genes[GENE_COUNT];
         for(int g=0; g < GENE_COUNT; g++){
             double old_gene = population[i].genes[g];
-            if(random_double(0, 1) < MUTATION_CHANCE){
+            if(random_double(0., 1.) < MUTATION_CHANCE){
                 new_genes[g] = old_gene + normal_distribution() * 0.1 * (HIGH - LOW);
             } else {
                 new_genes[g] = old_gene;
@@ -145,9 +147,9 @@ Chromosome *gaussian_mutation(Chromosome *population){
 
 double normal_distribution(){
     // Box-Muller transform
-    double y1 = random_double(0, 1);
-    double y2 = random_double(0, 1);
-    return cos(2*3.14*y2)*sqrt(-2.*log(y1));
+    double y1 = random_double(0., 1.);
+    double y2 = random_double(0., 1.);
+    return cos(2.*3.14*y2)*sqrt(-2.*log(y1));
 }
 
 Chromosome *uniform_crossover(Chromosome *population){
@@ -155,16 +157,16 @@ Chromosome *uniform_crossover(Chromosome *population){
     for(int i=0; i < POPULATION_SIZE/2; i++){
         Chromosome rand_chr1 = population[random_int(0, POPULATION_SIZE)];
         Chromosome rand_chr2 = population[random_int(0, POPULATION_SIZE)];
-        if(random_double(0, 1) < CROSSOVER_CHANCE){
+        if(random_double(0., 1.) < CROSSOVER_CHANCE){
             int genes1[GENE_COUNT];
             int genes2[GENE_COUNT];
             for(int g=0; g < GENE_COUNT; g++){
-                if(random_double(0,1) < 0.5){
+                if(random_double(0.,1.) < 0.5){
                     genes1[g] = rand_chr1.genes[g];
                 } else {
                     genes1[g] = rand_chr2.genes[g];
                 }
-                if(random_double(0,1) < 0.5){
+                if(random_double(0.,1.) < 0.5){
                     genes2[g] = rand_chr1.genes[g];
                 } else {
                     genes2[g] = rand_chr2.genes[g];
