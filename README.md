@@ -12,4 +12,4 @@ The Rosenbrock function is a tough function to optimize, read more about it on [
 
 The program creates a .txt with average and best fitness values for each generation. See `docs/fitness_values.txt` for an example. To visualize the progress better, a short python script has been used.
 
-![Optimization Plot](docs/optimization_plot.png)
+![Optimization Plot](doc/optimization_plot.png)
