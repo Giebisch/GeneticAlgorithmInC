@@ -4,9 +4,9 @@
 #include <time.h>
 
 #define GENE_COUNT          3
-#define GENERATIONS         100
-#define POPULATION_SIZE     30
-#define TOURNAMENT_SIZE     6
+#define GENERATIONS         750
+#define POPULATION_SIZE     100
+#define TOURNAMENT_SIZE     10
 #define MUTATION_CHANCE     0.3
 #define CROSSOVER_CHANCE    0.7
 #define LOW                 -5.
@@ -24,7 +24,7 @@ double random_double(double low, double high);
 double calculate_fitness(Chromosome chromosome);
 double calculate_function(Chromosome chromosome);
 void printf_chromosome(Chromosome chromosome);
-
+double get_average_fitness(Chromosome *population);
 Chromosome get_best_chromosome(Chromosome *population, int size);
 
 // genetic algorithm functions
@@ -36,15 +36,23 @@ Chromosome *gaussian_mutation(Chromosome *population);
 int main(int argc, char *argv[]) {
     // set random seed
     srand((unsigned int)time(NULL));
+    FILE *out_file = fopen("fitness_values.txt", "w");
+    fprintf(out_file, "AVERAGE\tBEST\n");
 
     Chromosome* population = generate_starting_population();
 
     for(int i=0; i < GENERATIONS; i++){
-        population = tournament_selection(population);
-        population = uniform_crossover(population);
-        population = gaussian_mutation(population);
-        Chromosome best = get_best_chromosome(population, POPULATION_SIZE);
-        printf_chromosome(best);
+        Chromosome* selected_chromosomes = tournament_selection(population);
+        Chromosome* crossover_chromosomes = uniform_crossover(selected_chromosomes);
+        Chromosome* mutated_chromosomes = gaussian_mutation(crossover_chromosomes);
+        
+        Chromosome best = get_best_chromosome(mutated_chromosomes, POPULATION_SIZE);
+        // printf_chromosome(best);
+        
+        for(int t = 0; t < POPULATION_SIZE; t++){
+            population[t] = mutated_chromosomes[t];
+        }
+        fprintf(out_file, "%lf\t%lf\n", get_average_fitness(population), best.fitness);
     }
 
     Chromosome best = get_best_chromosome(population, POPULATION_SIZE);
@@ -56,7 +64,7 @@ int main(int argc, char *argv[]) {
 }
 
 double random_double(double low, double high){
-    // returns a random double in 0 <= x < 1
+    // returns a random double in low <= x < high
     return ((double)rand()/(double)(RAND_MAX)) * (high - low) + low;
 }
 
@@ -68,7 +76,7 @@ int random_int(int low, int high){
 
 double calculate_function(Chromosome chromosome){
     // Rosenbrock function with n = 3
-    double value = 100. * pow((chromosome.genes[1] - pow(chromosome.genes[0], 2.)),2.) + pow((1. - chromosome.genes[0]), 2.);
+    double value = 100. * pow((chromosome.genes[1] - pow(chromosome.genes[0], 2.)),2.) + pow((1. - chromosome.genes[0]), 2.)
                  + 100. * pow((chromosome.genes[2] - pow(chromosome.genes[1], 2.)),2.) + pow((1. - chromosome.genes[1]), 2.);
     return value;
 }
@@ -76,6 +84,25 @@ double calculate_function(Chromosome chromosome){
 double calculate_fitness(Chromosome chromosome){
     double value = calculate_function(chromosome);
     return 1./(1. + fabs(value));
+}
+
+double get_average_fitness(Chromosome *population){
+    double average = 0;
+    for(int i=0; i < POPULATION_SIZE; i++){
+        average = average + population[i].fitness;
+    }
+    return average/POPULATION_SIZE;
+}
+
+void printf_chromosome(Chromosome chromosome){
+    printf("%lf : %lf, %lf, %lf\n", chromosome.fitness, chromosome.genes[0], chromosome.genes[1], chromosome.genes[2]);
+}
+
+double normal_distribution(){
+    // Box-Muller transform
+    double y1 = random_double(0., 1.);
+    double y2 = random_double(0., 1.);
+    return cos(2.*3.14*y2)*sqrt(-2.*log(y1));
 }
 
 Chromosome *generate_starting_population(){
@@ -89,24 +116,17 @@ Chromosome *generate_starting_population(){
     return chromosomes;
 }
 
-void printf_chromosome(Chromosome chromosome){
-    printf("%.20lf : %lf, %lf, %lf\n", chromosome.fitness, chromosome.genes[0], chromosome.genes[1], chromosome.genes[2]);
-}
-
 Chromosome *tournament_selection(Chromosome *population){
     Chromosome *new_population = (Chromosome*)calloc(POPULATION_SIZE, sizeof(Chromosome));
     for(int i=0; i < POPULATION_SIZE; i++){
         // select TOURNAMENT_SIZE-many random chromosomes
-        Chromosome *tournament_chromosomes = (Chromosome*)calloc(TOURNAMENT_SIZE, sizeof(Chromosome));
+        Chromosome tournament_chromosomes[TOURNAMENT_SIZE];
         for(int t=0; t < TOURNAMENT_SIZE; t++){
             int index = random_int(0, POPULATION_SIZE);
             tournament_chromosomes[t] = population[index];
         }
-
         // find chromosome with the highest fitness value in tournament and add to new population
         new_population[i] = get_best_chromosome(tournament_chromosomes, TOURNAMENT_SIZE);
-
-        free(tournament_chromosomes);
     }
     return new_population;
 }
@@ -145,21 +165,14 @@ Chromosome *gaussian_mutation(Chromosome *population){
     return new_population;
 }
 
-double normal_distribution(){
-    // Box-Muller transform
-    double y1 = random_double(0., 1.);
-    double y2 = random_double(0., 1.);
-    return cos(2.*3.14*y2)*sqrt(-2.*log(y1));
-}
-
 Chromosome *uniform_crossover(Chromosome *population){
     Chromosome *new_population = (Chromosome*)calloc(POPULATION_SIZE, sizeof(Chromosome));
     for(int i=0; i < POPULATION_SIZE/2; i++){
         Chromosome rand_chr1 = population[random_int(0, POPULATION_SIZE)];
         Chromosome rand_chr2 = population[random_int(0, POPULATION_SIZE)];
         if(random_double(0., 1.) < CROSSOVER_CHANCE){
-            int genes1[GENE_COUNT];
-            int genes2[GENE_COUNT];
+            double genes1[GENE_COUNT];
+            double genes2[GENE_COUNT];
             for(int g=0; g < GENE_COUNT; g++){
                 if(random_double(0.,1.) < 0.5){
                     genes1[g] = rand_chr1.genes[g];
@@ -175,8 +188,6 @@ Chromosome *uniform_crossover(Chromosome *population){
             Chromosome new_chr1, new_chr2;
             for(int gene = 0; gene < GENE_COUNT; gene++){
                 new_chr1.genes[gene] = genes1[gene];
-            }
-            for(int gene = 0; gene < GENE_COUNT; gene++){
                 new_chr2.genes[gene] = genes2[gene];
             }
             new_chr1.fitness = calculate_fitness(new_chr1);
